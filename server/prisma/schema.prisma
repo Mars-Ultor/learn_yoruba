@@ -1,0 +1,111 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  username  String   @unique
+  password  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  streak       Int @default(0)
+  totalPoints  Int @default(0)
+  level        Int @default(1)
+  lastActiveAt DateTime @default(now())
+  
+  progress   UserProgress[]
+  dailyGoals DailyGoal[]
+  
+  @@index([email])
+  @@index([username])
+}
+
+model Lesson {
+  id          String   @id @default(uuid())
+  title       String
+  description String
+  category    String
+  difficulty  String
+  order       Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  phrases  Phrase[]
+  progress UserProgress[]
+  
+  @@index([category])
+  @@index([difficulty])
+}
+
+model Phrase {
+  id       String @id @default(uuid())
+  yoruba   String
+  pronunciation String
+  english  String
+  audioUrl String?
+  context  String?
+  order    Int
+  
+  lessonId String
+  lesson   Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  
+  @@index([lessonId])
+}
+
+model Vocabulary {
+  id       String   @id @default(uuid())
+  word     String
+  pronunciation String
+  meaning  String
+  type     String
+  examples String   // JSON string
+  audioUrl String?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([type])
+}
+
+model UserProgress {
+  id              String   @id @default(uuid())
+  userId          String
+  lessonId        String
+  completed       Boolean  @default(false)
+  score           Int
+  attempts        Int      @default(1)
+  lastAttemptDate DateTime @default(now())
+  
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, lessonId])
+  @@index([userId])
+  @@index([lessonId])
+}
+
+model DailyGoal {
+  id               String   @id @default(uuid())
+  userId           String
+  date             DateTime @default(now())
+  targetMinutes    Int      @default(15)
+  completedMinutes Int      @default(0)
+  targetLessons    Int      @default(3)
+  completedLessons Int      @default(0)
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, date])
+  @@index([userId])
+  @@index([date])
+}
