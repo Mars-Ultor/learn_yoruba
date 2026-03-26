@@ -25,4 +25,4 @@ app.get('/health', (req: Request, res: Response) => {
 });
 
 // Export as Firebase Cloud Function
-export const api = onRequest(app);
+export const api = onRequest({ invoker: 'public' }, app);

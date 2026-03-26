@@ -90,6 +90,54 @@ export default function Home() {
           </p>
         </div>
       </div>
+
+      {/* New features highlight */}
+      <div>
+        <h2 className="text-3xl font-bold text-gray-900 mb-6 text-center">Advanced Learning Tools</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <Link
+            to="/schedule"
+            className="group bg-gradient-to-br from-emerald-500 to-green-600 text-white rounded-2xl p-7 shadow-xl hover:shadow-2xl transition-shadow space-y-3"
+          >
+            <div className="text-4xl">📅</div>
+            <h3 className="text-xl font-bold">Learning Schedule</h3>
+            <p className="text-green-100 text-sm">
+              Build a weekly study plan with timed sessions. Get browser reminders so you never miss a day.
+            </p>
+            <span className="text-xs font-semibold text-green-200 group-hover:text-white transition-colors">
+              Set your schedule →
+            </span>
+          </Link>
+
+          <Link
+            to="/drill"
+            className="group bg-gradient-to-br from-purple-600 to-indigo-700 text-white rounded-2xl p-7 shadow-xl hover:shadow-2xl transition-shadow space-y-3"
+          >
+            <div className="text-4xl">🎯</div>
+            <h3 className="text-xl font-bold">Intensive Drill</h3>
+            <p className="text-gray-300 text-sm">
+              Research-backed high-intensity repetition: 3× consecutive reps, 30s time pressure, 90% accuracy threshold.
+            </p>
+            <span className="text-xs font-semibold text-gray-400 group-hover:text-white transition-colors">
+              Start drill →
+            </span>
+          </Link>
+
+          <Link
+            to="/techniques"
+            className="group bg-gradient-to-br from-blue-500 to-indigo-600 text-white rounded-2xl p-7 shadow-xl hover:shadow-2xl transition-shadow space-y-3"
+          >
+            <div className="text-4xl">🧠</div>
+            <h3 className="text-xl font-bold">Learning Techniques</h3>
+            <p className="text-blue-100 text-sm">
+              SRS flashcards, shadowing, mnemonics, storytelling method, and full immersion mode — all in one place.
+            </p>
+            <span className="text-xs font-semibold text-blue-200 group-hover:text-white transition-colors">
+              Explore techniques →
+            </span>
+          </Link>
+        </div>
+      </div>
     </div>
   );
 }

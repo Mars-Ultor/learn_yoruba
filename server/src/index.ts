@@ -5,6 +5,9 @@ import lessonRoutes from './routes/lessons';
 import userRoutes from './routes/users';
 import progressRoutes from './routes/progress';
 import vocabularyRoutes from './routes/vocabulary';
+import scheduleRoutes from './routes/schedule';
+import settingsRoutes from './routes/settings';
+import flashcardRoutes from './routes/flashcards';
 
 dotenv.config();
 
@@ -21,6 +24,9 @@ app.use('/api/lessons', lessonRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/progress', progressRoutes);
 app.use('/api/vocabulary', vocabularyRoutes);
+app.use('/api/schedule', scheduleRoutes);
+app.use('/api/settings', settingsRoutes);
+app.use('/api/flashcards', flashcardRoutes);
 
 // Health check
 app.get('/health', (req: Request, res: Response) => {

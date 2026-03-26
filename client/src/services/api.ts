@@ -58,4 +58,39 @@ export const progressApi = {
   }) => api.post('/progress/goals', data),
 };
 
+// Schedule API
+export const scheduleApi = {
+  getByUser: (userId: string) => api.get(`/schedule/user/${userId}`),
+  create: (data: { userId: string; dayOfWeek: number; startTime: string; duration?: number }) =>
+    api.post('/schedule', data),
+  update: (id: string, data: { dayOfWeek?: number; startTime?: string; duration?: number; active?: boolean }) =>
+    api.put(`/schedule/${id}`, data),
+  remove: (id: string) => api.delete(`/schedule/${id}`),
+};
+
+// Settings API
+export const settingsApi = {
+  getByUser: (userId: string) => api.get(`/settings/user/${userId}`),
+  update: (
+    userId: string,
+    data: Partial<{
+      learningStyle: string;
+      flashcardMode: boolean;
+      shadowingMode: boolean;
+      mnemonicMode: boolean;
+      storyMode: boolean;
+      dailyReminders: boolean;
+    }>,
+  ) => api.put(`/settings/user/${userId}`, data),
+};
+
+// Flashcards API
+export const flashcardsApi = {
+  getDue: (userId: string) => api.get(`/flashcards/user/${userId}/due`),
+  getAll: (userId: string) => api.get(`/flashcards/user/${userId}/all`),
+  init: (userId: string) => api.post(`/flashcards/user/${userId}/init`),
+  review: (data: { userId: string; vocabularyId: string; quality: number }) =>
+    api.post('/flashcards/review', data),
+};
+
 export default api;

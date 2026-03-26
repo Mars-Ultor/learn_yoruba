@@ -23,8 +23,11 @@ model User {
   level        Int @default(1)
   lastActiveAt DateTime @default(now())
   
-  progress   UserProgress[]
-  dailyGoals DailyGoal[]
+  progress          UserProgress[]
+  dailyGoals        DailyGoal[]
+  schedules         LearningSchedule[]
+  settings          UserSettings?
+  flashcardReviews  FlashcardReview[]
   
   @@index([email])
   @@index([username])
@@ -74,6 +77,8 @@ model Vocabulary {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   
+  flashcardReviews FlashcardReview[]
+  
   @@index([type])
 }
 
@@ -108,4 +113,61 @@ model DailyGoal {
   @@unique([userId, date])
   @@index([userId])
   @@index([date])
+}
+
+// ─── Learning Schedule ────────────────────────────────────────────────────────
+
+model LearningSchedule {
+  id        String   @id @default(uuid())
+  userId    String
+  dayOfWeek Int      // 0=Sunday … 6=Saturday
+  startTime String   // "HH:MM" (24-hour)
+  duration  Int      @default(30) // minutes
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ─── User Settings (learning style + technique preferences) ──────────────────
+
+model UserSettings {
+  id             String   @id @default(uuid())
+  userId         String   @unique
+  // "standard" | "military" | "story" | "immersion"
+  learningStyle  String   @default("standard")
+  // technique toggles
+  flashcardMode  Boolean  @default(true)
+  shadowingMode  Boolean  @default(false)
+  mnemonicMode   Boolean  @default(false)
+  storyMode      Boolean  @default(false)
+  dailyReminders Boolean  @default(false)
+  updatedAt      DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ─── Flashcard / SRS Review ───────────────────────────────────────────────────
+
+model FlashcardReview {
+  id           String   @id @default(uuid())
+  userId       String
+  vocabularyId String
+  // SM-2 algorithm fields
+  easeFactor   Float    @default(2.5)
+  interval     Int      @default(1)   // days until next review
+  repetitions  Int      @default(0)
+  nextReview   DateTime @default(now())
+  lastReview   DateTime @default(now())
+  createdAt    DateTime @default(now())
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vocabulary Vocabulary @relation(fields: [vocabularyId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, vocabularyId])
+  @@index([userId])
+  @@index([nextReview])
 }

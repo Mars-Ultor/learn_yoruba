@@ -53,3 +53,49 @@ export interface DailyGoal {
   targetLessons: number;
   completedLessons: number;
 }
+
+// ─── Learning Schedule ────────────────────────────────────────────────────────
+
+export interface LearningSchedule {
+  id: string;
+  userId: string;
+  dayOfWeek: number; // 0=Sunday … 6=Saturday
+  startTime: string; // "HH:MM"
+  duration: number;  // minutes
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ─── User Settings ────────────────────────────────────────────────────────────
+
+export type LearningStyle = 'standard' | 'intensive' | 'story' | 'immersion';
+
+export interface UserSettings {
+  id: string;
+  userId: string;
+  learningStyle: LearningStyle;
+  flashcardMode: boolean;
+  shadowingMode: boolean;
+  mnemonicMode: boolean;
+  storyMode: boolean;
+  dailyReminders: boolean;
+  updatedAt: string;
+}
+
+// ─── Flashcard / SRS ─────────────────────────────────────────────────────────
+
+export type FlashcardQuality = 0 | 1 | 2 | 3; // Again | Hard | Good | Easy
+
+export interface FlashcardReview {
+  id: string;
+  userId: string;
+  vocabularyId: string;
+  easeFactor: number;
+  interval: number;
+  repetitions: number;
+  nextReview: string;
+  lastReview: string;
+  vocabulary: Vocabulary;
+}
+

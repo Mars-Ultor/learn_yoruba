@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -9,8 +9,22 @@ interface LayoutProps {
 export default function Layout({ children }: LayoutProps) {
   const location = useLocation();
   const { user, logout } = useAuth();
-  
-  const isActive = (path: string) => location.pathname === path;
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  const isActive = (path: string) =>
+    path === '/' ? location.pathname === '/' : location.pathname.startsWith(path);
+
+  const navLink = (to: string, label: string) => (
+    <Link
+      to={to}
+      onClick={() => setMobileOpen(false)}
+      className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+        isActive(to) ? 'bg-green-100 text-green-700' : 'text-gray-700 hover:bg-gray-100'
+      }`}
+    >
+      {label}
+    </Link>
+  );
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100">
@@ -18,6 +32,7 @@ export default function Layout({ children }: LayoutProps) {
       <nav className="bg-white shadow-lg">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
+            {/* Logo */}
             <div className="flex items-center">
               <Link to="/" className="flex items-center space-x-2">
                 <span className="text-3xl">🇳🇬</span>
@@ -26,50 +41,19 @@ export default function Layout({ children }: LayoutProps) {
                 </span>
               </Link>
             </div>
-            
-            <div className="flex items-center space-x-4">
-              <Link
-                to="/"
-                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                  isActive('/') 
-                    ? 'bg-green-100 text-green-700' 
-                    : 'text-gray-700 hover:bg-gray-100'
-                }`}
-              >
-                Home
-              </Link>
-              <Link
-                to="/lessons"
-                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                  isActive('/lessons') 
-                    ? 'bg-green-100 text-green-700' 
-                    : 'text-gray-700 hover:bg-gray-100'
-                }`}
-              >
-                Lessons
-              </Link>
-              <Link
-                to="/vocabulary"
-                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                  isActive('/vocabulary') 
-                    ? 'bg-green-100 text-green-700' 
-                    : 'text-gray-700 hover:bg-gray-100'
-                }`}
-              >
-                Vocabulary
-              </Link>
+
+            {/* Desktop links */}
+            <div className="hidden md:flex items-center space-x-1">
+              {navLink('/', 'Home')}
+              {navLink('/lessons', 'Lessons')}
+              {navLink('/vocabulary', 'Vocabulary')}
+              {navLink('/schedule', 'Schedule')}
+              {navLink('/techniques', 'Techniques')}
+              {navLink('/drill', 'Intensive Drill')}
+              {navLink('/flashcards', 'Flashcards')}
               {user ? (
                 <>
-                  <Link
-                    to="/profile"
-                    className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                      isActive('/profile') 
-                        ? 'bg-green-100 text-green-700' 
-                        : 'text-gray-700 hover:bg-gray-100'
-                    }`}
-                  >
-                    Profile
-                  </Link>
+                  {navLink('/profile', 'Profile')}
                   <button
                     onClick={() => logout()}
                     className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors"
@@ -78,20 +62,48 @@ export default function Layout({ children }: LayoutProps) {
                   </button>
                 </>
               ) : (
-                <Link
-                  to="/login"
-                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                    isActive('/login') 
-                      ? 'bg-green-100 text-green-700' 
-                      : 'text-gray-700 hover:bg-gray-100'
-                  }`}
-                >
-                  Login
-                </Link>
+                navLink('/login', 'Login')
               )}
+            </div>
+
+            {/* Mobile hamburger */}
+            <div className="flex md:hidden items-center">
+              <button
+                onClick={() => setMobileOpen((v) => !v)}
+                className="p-2 rounded-md text-gray-700 hover:bg-gray-100 transition-colors"
+                aria-label="Toggle menu"
+              >
+                {mobileOpen ? '✕' : '☰'}
+              </button>
             </div>
           </div>
         </div>
+
+        {/* Mobile menu */}
+        {mobileOpen && (
+          <div className="md:hidden border-t border-gray-100 px-4 py-3 space-y-1">
+            {navLink('/', 'Home')}
+            {navLink('/lessons', 'Lessons')}
+            {navLink('/vocabulary', 'Vocabulary')}
+            {navLink('/schedule', 'Schedule')}
+            {navLink('/techniques', 'Techniques')}
+            {navLink('/drill', 'Intensive Drill')}
+            {navLink('/flashcards', 'Flashcards')}
+            {user ? (
+              <>
+                {navLink('/profile', 'Profile')}
+                <button
+                  onClick={() => { logout(); setMobileOpen(false); }}
+                  className="block w-full text-left px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors"
+                >
+                  Logout
+                </button>
+              </>
+            ) : (
+              navLink('/login', 'Login')
+            )}
+          </div>
+        )}
       </nav>
 
       {/* Main Content */}

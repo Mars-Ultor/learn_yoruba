@@ -8,6 +8,10 @@ import Vocabulary from './pages/Vocabulary';
 import Profile from './pages/Profile';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import Schedule from './pages/Schedule';
+import IntensiveDrill from './pages/IntensiveDrill';
+import Techniques from './pages/Techniques';
+import Flashcards from './pages/Flashcards';
 import './index.css';
 
 function App() {
@@ -23,6 +27,10 @@ function App() {
             <Route path="/profile" element={<Profile />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/schedule" element={<Schedule />} />
+            <Route path="/drill" element={<IntensiveDrill />} />
+            <Route path="/techniques" element={<Techniques />} />
+            <Route path="/flashcards" element={<Flashcards />} />
           </Routes>
         </Layout>
       </Router>
