@@ -1,0 +1,38 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Lessons and phrases are publicly readable
+    match /lessons/{lessonId} {
+      allow read: if true;
+      allow write: if false;
+
+      match /phrases/{phraseId} {
+        allow read: if true;
+        allow write: if false;
+      }
+    }
+
+    // Vocabulary is publicly readable
+    match /vocabulary/{vocabId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Users can only read/write their own data
+    match /users/{userId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null && request.auth.uid == userId;
+      allow update: if request.auth != null && request.auth.uid == userId;
+      allow delete: if false;
+
+      match /progress/{progressId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+
+      match /dailyGoals/{goalId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+  }
+}

@@ -1,3 +1,13 @@
+export interface User {
+  id: string;
+  email: string;
+  username: string;
+  createdAt: string;
+  streak: number;
+  totalPoints: number;
+  level: number;
+}
+
 export interface Lesson {
   id: string;
   title: string;
@@ -33,21 +43,12 @@ export interface UserProgress {
   completed: boolean;
   score: number;
   attempts: number;
-  lastAttemptDate: Date;
-}
-
-export interface User {
-  id: string;
-  email: string;
-  username: string;
-  streak: number;
-  totalPoints: number;
-  level: number;
+  lastAttemptDate: string;
 }
 
 export interface DailyGoal {
   userId: string;
-  date: Date;
+  date: string;
   targetMinutes: number;
   completedMinutes: number;
   targetLessons: number;

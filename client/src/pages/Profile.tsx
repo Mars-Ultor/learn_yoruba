@@ -1,28 +1,35 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { usersApi, progressApi } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
 import type { User, UserProgress, DailyGoal } from '../types';
 
 export default function Profile() {
+  const { user: authUser } = useAuth();
   const [user, setUser] = useState<User | null>(null);
   const [progress, setProgress] = useState<UserProgress[]>([]);
   const [dailyGoal, setDailyGoal] = useState<DailyGoal | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchUserData();
-  }, []);
+    if (authUser) {
+      fetchUserData();
+    } else {
+      setLoading(false);
+    }
+  }, [authUser]);
 
   const fetchUserData = async () => {
+    if (!authUser) return;
     try {
       setLoading(true);
-      // Using demo user ID '1'
-      const userResponse = await usersApi.getProfile('1');
+      const userResponse = await usersApi.getProfile(authUser.uid);
       setUser(userResponse.data);
 
-      const progressResponse = await progressApi.getUserProgress('1');
+      const progressResponse = await progressApi.getUserProgress(authUser.uid);
       setProgress(progressResponse.data);
 
-      const goalResponse = await progressApi.getDailyGoals('1');
+      const goalResponse = await progressApi.getDailyGoals(authUser.uid);
       setDailyGoal(goalResponse.data);
     } catch (error) {
       console.error('Error fetching user data:', error);
@@ -39,10 +46,21 @@ export default function Profile() {
     );
   }
 
+  if (!authUser) {
+    return (
+      <div className="text-center py-12">
+        <div className="text-gray-600 mb-4">Please log in to view your profile</div>
+        <Link to="/login" className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors">
+          Sign In
+        </Link>
+      </div>
+    );
+  }
+
   if (!user) {
     return (
       <div className="text-center py-12">
-        <div className="text-gray-600">User not found</div>
+        <div className="text-gray-600">User profile not found</div>
       </div>
     );
   }

@@ -4,7 +4,7 @@ import type { Vocabulary } from '../types';
 
 export default function VocabularyPage() {
   const [vocabulary, setVocabulary] = useState<Vocabulary[]>([]);
-  const [filter, setFilter] = useState<'all' | 'greetings' | 'nouns' | 'verbs' | 'proverbs'>('all');
+  const [filter, setFilter] = useState<'all' | 'greetings' | 'nouns' | 'verbs' | 'proverbs' | 'adjectives' | 'adverbs' | 'numbers' | 'expressions'>('all');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -35,6 +35,14 @@ export default function VocabularyPage() {
         return 'bg-purple-100 text-purple-800';
       case 'proverbs':
         return 'bg-amber-100 text-amber-800';
+      case 'adjectives':
+        return 'bg-pink-100 text-pink-800';
+      case 'adverbs':
+        return 'bg-cyan-100 text-cyan-800';
+      case 'numbers':
+        return 'bg-indigo-100 text-indigo-800';
+      case 'expressions':
+        return 'bg-orange-100 text-orange-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
@@ -52,57 +60,30 @@ export default function VocabularyPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-4xl font-bold text-gray-900">Àkójọ Ọ̀rọ̀ - Vocabulary</h1>
-        <div className="flex gap-2">
-          <button
-            onClick={() => setFilter('all')}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-              filter === 'all'
-                ? 'bg-green-600 text-white'
-                : 'bg-white text-gray-700 hover:bg-gray-50'
-            }`}
-          >
-            All
-          </button>
-          <button
-            onClick={() => setFilter('greetings')}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-              filter === 'greetings'
-                ? 'bg-green-600 text-white'
-                : 'bg-white text-gray-700 hover:bg-gray-50'
-            }`}
-          >
-            Greetings
-          </button>
-          <button
-            onClick={() => setFilter('nouns')}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-              filter === 'nouns'
-                ? 'bg-blue-600 text-white'
-                : 'bg-white text-gray-700 hover:bg-gray-50'
-            }`}
-          >
-            Nouns
-          </button>
-          <button
-            onClick={() => setFilter('verbs')}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-              filter === 'verbs'
-                ? 'bg-purple-600 text-white'
-                : 'bg-white text-gray-700 hover:bg-gray-50'
-            }`}
-          >
-            Verbs
-          </button>
-          <button
-            onClick={() => setFilter('proverbs')}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-              filter === 'proverbs'
-                ? 'bg-amber-600 text-white'
-                : 'bg-white text-gray-700 hover:bg-gray-50'
-            }`}
-          >
-            Proverbs
-          </button>
+        <div className="flex gap-2 flex-wrap justify-end">
+          {([
+            { key: 'all', label: 'All', color: 'green' },
+            { key: 'greetings', label: 'Greetings', color: 'green' },
+            { key: 'nouns', label: 'Nouns', color: 'blue' },
+            { key: 'verbs', label: 'Verbs', color: 'purple' },
+            { key: 'adjectives', label: 'Adjectives', color: 'pink' },
+            { key: 'adverbs', label: 'Adverbs', color: 'cyan' },
+            { key: 'numbers', label: 'Numbers', color: 'indigo' },
+            { key: 'proverbs', label: 'Proverbs', color: 'amber' },
+            { key: 'expressions', label: 'Expressions', color: 'orange' },
+          ] as const).map(({ key, label, color }) => (
+            <button
+              key={key}
+              onClick={() => setFilter(key)}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                filter === key
+                  ? `bg-${color}-600 text-white`
+                  : 'bg-white text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
         </div>
       </div>
 

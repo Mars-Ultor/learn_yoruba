@@ -1,12 +1,23 @@
 import axios from 'axios';
+import { auth } from '../lib/firebase';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
+});
+
+// Attach Firebase auth token to requests
+api.interceptors.request.use(async (config) => {
+  const user = auth.currentUser;
+  if (user) {
+    const token = await user.getIdToken();
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
 });
 
 // Lessons API
@@ -27,10 +38,8 @@ export const vocabularyApi = {
 // Users API
 export const usersApi = {
   getProfile: (id: string) => api.get(`/users/${id}`),
-  register: (data: { email: string; username: string; password: string }) =>
+  register: (data: { uid: string; email: string; username: string }) =>
     api.post('/users/register', data),
-  login: (data: { email: string; password: string }) =>
-    api.post('/users/login', data),
 };
 
 // Progress API

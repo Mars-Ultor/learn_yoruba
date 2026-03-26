@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 
 interface LayoutProps {
   children: ReactNode;
@@ -7,6 +8,7 @@ interface LayoutProps {
 
 export default function Layout({ children }: LayoutProps) {
   const location = useLocation();
+  const { user, logout } = useAuth();
   
   const isActive = (path: string) => location.pathname === path;
 
@@ -56,16 +58,37 @@ export default function Layout({ children }: LayoutProps) {
               >
                 Vocabulary
               </Link>
-              <Link
-                to="/profile"
-                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                  isActive('/profile') 
-                    ? 'bg-green-100 text-green-700' 
-                    : 'text-gray-700 hover:bg-gray-100'
-                }`}
-              >
-                Profile
-              </Link>
+              {user ? (
+                <>
+                  <Link
+                    to="/profile"
+                    className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                      isActive('/profile') 
+                        ? 'bg-green-100 text-green-700' 
+                        : 'text-gray-700 hover:bg-gray-100'
+                    }`}
+                  >
+                    Profile
+                  </Link>
+                  <button
+                    onClick={() => logout()}
+                    className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors"
+                  >
+                    Logout
+                  </button>
+                </>
+              ) : (
+                <Link
+                  to="/login"
+                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    isActive('/login') 
+                      ? 'bg-green-100 text-green-700' 
+                      : 'text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  Login
+                </Link>
+              )}
             </div>
           </div>
         </div>
