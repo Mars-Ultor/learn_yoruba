@@ -1,3 +1,4 @@
+// Node.js 22 runtime
 import express, { Application, Request, Response } from 'express';
 import cors from 'cors';
 import { onRequest } from 'firebase-functions/v2/https';
