@@ -10,17 +10,19 @@ router.get('/user/:userId', requireAuth, async (req: Request, res: Response) => 
   if (req.uid !== userId) return res.status(403).json({ error: 'Forbidden' });
 
   try {
+    // Simple query: filter by userId, sort in memory to avoid compound index
     const snap = await db
       .collection('schedules')
       .where('userId', '==', userId)
-      .orderBy('dayOfWeek')
       .get();
 
-    const schedules = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    const schedules = snap.docs
+      .map((doc) => ({ id: doc.id, ...doc.data() }))
+      .sort((a: any, b: any) => (a.dayOfWeek ?? 0) - (b.dayOfWeek ?? 0));
     return res.json(schedules);
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ error: 'Internal server error' });
+  } catch (err: any) {
+    console.error('schedule/user error:', err?.message ?? err);
+    return res.status(500).json({ error: 'Internal server error', detail: err?.message });
   }
 });
 

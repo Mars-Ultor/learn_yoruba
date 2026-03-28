@@ -26,16 +26,19 @@ router.get('/user/:userId/due', requireAuth, async (req: Request, res: Response)
 
   try {
     const now = new Date().toISOString();
+    // Simple query: only filter by userId, then filter + sort in memory
     const snap = await db
       .collection('flashcards')
       .where('userId', '==', userId)
-      .where('nextReview', '<=', now)
-      .orderBy('nextReview')
-      .limit(50)
       .get();
 
+    const dueDocs = snap.docs
+      .filter((doc) => (doc.data().nextReview ?? '') <= now)
+      .sort((a, b) => (a.data().nextReview ?? '').localeCompare(b.data().nextReview ?? ''))
+      .slice(0, 50);
+
     const cards = await Promise.all(
-      snap.docs.map(async (doc) => {
+      dueDocs.map(async (doc) => {
         const data = doc.data();
         // Embed vocabulary
         const vocabSnap = await db.collection('vocabulary').doc(data.vocabularyId).get();
@@ -48,9 +51,9 @@ router.get('/user/:userId/due', requireAuth, async (req: Request, res: Response)
     );
 
     return res.json(cards);
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ error: 'Internal server error' });
+  } catch (err: any) {
+    console.error('flashcards/due error:', err?.message ?? err);
+    return res.status(500).json({ error: 'Internal server error', detail: err?.message });
   }
 });
 

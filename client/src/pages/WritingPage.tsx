@@ -20,7 +20,15 @@ export default function WritingPage() {
     setText('');
     try {
       const r = await writingApi.getPrompt();
-      setPrompt(r.data.prompt ?? r.data);
+      const d = r.data;
+      // Backend returns { yoruba, english } — build display string
+      if (typeof d === 'string') {
+        setPrompt(d);
+      } else if (d.yoruba && d.english) {
+        setPrompt(`${d.yoruba}  —  ${d.english}`);
+      } else {
+        setPrompt(d.prompt ?? JSON.stringify(d));
+      }
     } catch (e) {
       console.error(e);
     }
