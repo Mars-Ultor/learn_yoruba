@@ -136,6 +136,46 @@ router.post('/submit', requireAuth, async (req: Request, res: Response) => {
   res.json({ score, correct, total: questions.length, xpEarned, leveledUp, newLevel, totalPoints });
 });
 
+// GET /quiz/history — past quiz attempts for the authenticated user
+router.get('/history', requireAuth, async (req: Request, res: Response) => {
+  const uid = (req as any).uid as string;
+  try {
+    const snap = await db
+      .collection('quizAttempts')
+      .doc(uid)
+      .collection('sessions')
+      .orderBy('completedAt', 'desc')
+      .limit(20)
+      .get();
+
+    const attempts = await Promise.all(
+      snap.docs.map(async (doc) => {
+        const data = doc.data();
+        // Fetch lesson title
+        let lessonTitle = 'Unknown lesson';
+        if (data.lessonId) {
+          const lessonDoc = await db.collection('lessons').doc(data.lessonId).get();
+          if (lessonDoc.exists) lessonTitle = lessonDoc.data()!.title;
+        }
+        return {
+          id: doc.id,
+          lessonId: data.lessonId,
+          lessonTitle,
+          score: data.score,
+          questions: data.questions,
+          answers: data.answers,
+          completedAt: data.completedAt,
+        };
+      }),
+    );
+
+    res.json(attempts);
+  } catch (error) {
+    console.error('Error fetching quiz history:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function shuffleArray<T>(arr: T[]): T[] {

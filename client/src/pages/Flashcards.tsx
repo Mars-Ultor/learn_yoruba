@@ -32,7 +32,21 @@ export default function Flashcards() {
     setLoading(true);
     try {
       const res = await flashcardsApi.getDue(user!.uid);
-      setCards(res.data);
+      if (res.data.length === 0) {
+        // Auto-init deck if no cards exist yet
+        const allRes = await flashcardsApi.getAll(user!.uid);
+        if (allRes.data.length === 0) {
+          setInitialising(true);
+          await flashcardsApi.init(user!.uid);
+          const retry = await flashcardsApi.getDue(user!.uid);
+          setCards(retry.data);
+          setInitialising(false);
+        } else {
+          setCards([]);
+        }
+      } else {
+        setCards(res.data);
+      }
       setCurrentIdx(0);
       setRevealed(false);
       setSessionComplete(false);

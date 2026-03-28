@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { dashboardApi, onboardingApi } from '../services/api';
+import { dashboardApi, onboardingApi, tasksApi } from '../services/api';
 import OnboardingWizard from '../components/OnboardingWizard';
 
 interface DashboardRecs {
@@ -15,10 +15,21 @@ interface DashboardRecs {
   activeMissions: { title: string; progress: number; target: number }[];
 }
 
+interface DailyTask {
+  id: string;
+  type: string;
+  title: string;
+  description: string;
+  target: number;
+  progress: number;
+  completed: boolean;
+}
+
 export default function Home() {
   const { user } = useAuth();
   const [dashboard, setDashboard] = useState<DashboardRecs | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [dailyTasks, setDailyTasks] = useState<DailyTask[]>([]);
 
   useEffect(() => {
     if (!user) return;
@@ -26,6 +37,7 @@ export default function Home() {
     onboardingApi.getStatus().then((r) => {
       if (!r.data.onboardingComplete) setShowOnboarding(true);
     }).catch(console.error);
+    tasksApi.getDaily().then((r) => setDailyTasks(r.data.tasks ?? [])).catch(console.error);
   }, [user]);
 
   if (user && dashboard) {
@@ -80,6 +92,37 @@ export default function Home() {
                   className="bg-green-500 h-2.5 rounded-full transition-all"
                   style={{ width: `${Math.min(100, (dashboard.dailyGoal.completedLessons / (dashboard.dailyGoal.targetMinutes || 1)) * 100)}%` }}
                 />
+              </div>
+            </div>
+          )}
+
+          {/* Daily Tasks */}
+          {dailyTasks.length > 0 && (
+            <div className="bg-white rounded-xl p-5 shadow">
+              <h2 className="text-lg font-bold text-gray-900 mb-3">📋 Today's Tasks</h2>
+              <div className="space-y-3">
+                {dailyTasks.map((task) => {
+                  const taskLinks: Record<string, string> = {
+                    lesson: '/lessons', flashcard: '/flashcards', quiz: '/quiz',
+                    conversation: '/conversation', writing: '/writing', reading: '/reading',
+                    drill: '/drill',
+                  };
+                  const taskTo = taskLinks[task.type] ?? '/lessons';
+                  return (
+                    <Link key={task.id} to={taskTo} className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors">
+                      <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${task.completed ? 'border-green-500 bg-green-500' : 'border-gray-300'}`}>
+                        {task.completed && <span className="text-white text-xs">✓</span>}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-sm font-medium ${task.completed ? 'text-gray-400 line-through' : 'text-gray-800'}`}>{task.title}</p>
+                        <p className="text-xs text-gray-400">{task.description}</p>
+                      </div>
+                      <div className="text-xs text-gray-400 flex-shrink-0">
+                        {task.progress}/{task.target}
+                      </div>
+                    </Link>
+                  );
+                })}
               </div>
             </div>
           )}

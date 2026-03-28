@@ -1349,24 +1349,33 @@ async function seed() {
 
   // Clear existing data
   console.log('🗑️  Clearing existing data...');
-  const collections = ['lessons', 'vocabulary', 'schedules', 'flashcards'];
+  const collections = ['lessons', 'vocabulary', 'schedules', 'flashcards', 'readingExercises', 'missions', 'achievements'];
   for (const col of collections) {
     const snapshot = await db.collection(col).get();
-    const batch = db.batch();
-    snapshot.docs.forEach((doc) => batch.delete(doc.ref));
-    if (snapshot.docs.length > 0) await batch.commit();
+    const delBatches = [];
+    for (let i = 0; i < snapshot.docs.length; i += 500) {
+      const b = db.batch();
+      snapshot.docs.slice(i, i + 500).forEach((doc) => b.delete(doc.ref));
+      delBatches.push(b.commit());
+    }
+    await Promise.all(delBatches);
   }
 
-  // Seed lessons with phrases
-  console.log(`\n📚 Seeding ${lessons.length} lessons...`);
+  // Seed lessons with phrases + prerequisite chaining
+  console.log(`\n📚 Seeding ${lessons.length} lessons with prerequisite chaining...`);
+  const lessonIdsByOrder = new Map<number, string>(); // order → docId
   for (const lesson of lessons) {
     const { phrases, ...lessonData } = lesson;
     const lessonRef = db.collection('lessons').doc();
+    const prerequisiteId = lesson.order > 1 ? (lessonIdsByOrder.get(lesson.order - 1) ?? null) : null;
     await lessonRef.set({
       ...lessonData,
+      prerequisiteId,
+      minimumScoreToUnlock: 70,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     });
+    lessonIdsByOrder.set(lesson.order, lessonRef.id);
 
     // Add phrases as subcollection
     for (const phrase of phrases) {
@@ -1472,15 +1481,246 @@ async function seed() {
     }
   }
 
+  // ─── Seed Reading Exercises ─────────────────────────────────────────────────
+  console.log('\n📖 Seeding reading exercises...');
+  const readingExercises = [
+    {
+      title: 'Ìkíni Ojoojúmọ́ — Daily Greetings',
+      difficulty: 'beginner',
+      passage: `Owúrọ̀ ọjọ́ kan, Adébáyọ̀ wọ ilé iṣẹ́ rẹ̀. Ó kí àwọn alábàáṣiṣẹ́pọ̀ rẹ̀.
+
+"Ẹ kú àárọ̀!" Adébáyọ̀ kí Títílayọ́.
+"Ẹ kú àárọ̀, o! Báwo ni?" Títílayọ́ dáhùn.
+"Mo wà dáadáa, ẹ ṣé. Ṣé àlàáfíà ni?" Adébáyọ̀ béèrè.
+"Àlàáfíà, ọ̀rẹ́ mi. Ẹ kú iṣẹ́ o!" Títílayọ́ sọ.
+
+Nígbà tí ó di ọ̀sán, Adébáyọ̀ lọ sí ilé oúnjẹ. Ó pàdé Kúnlé níbẹ̀.
+"Ẹ kú ọ̀sán, Kúnlé!" Adébáyọ̀ kí i.
+"Ẹ kú ọ̀sán! Ṣé o ti jẹun?" Kúnlé béèrè.
+"Rárá, èmi ò tíì jẹun. Ẹ jẹ́ ká jẹun papọ̀," Adébáyọ̀ dáhùn.`,
+      questions: [
+        { id: 'q1', question: 'Where did Adébáyọ̀ go in the morning?', options: ['To the market', 'To his workplace', 'To school', 'To church'], correct: 'To his workplace' },
+        { id: 'q2', question: 'What does "Mo wà dáadáa" mean?', options: ['I am tired', 'I am fine', 'I am hungry', 'I am late'], correct: 'I am fine' },
+        { id: 'q3', question: 'Who did Adébáyọ̀ meet at the restaurant?', options: ['Títílayọ́', 'Kúnlé', 'His boss', 'His wife'], correct: 'Kúnlé' },
+        { id: 'q4', question: 'What does "Ṣé o ti jẹun?" mean?', options: ['Are you leaving?', 'Have you eaten?', 'Are you working?', 'Are you sleeping?'], correct: 'Have you eaten?' },
+      ],
+    },
+    {
+      title: 'Ọjà Ẹ̀kọ́ — Lagos Market',
+      difficulty: 'beginner',
+      passage: `Àìní lọ sí ọjà ní ọjọ́ Abámẹ́ta. Ó fẹ́ ra oúnjẹ fún ẹbí rẹ̀.
+
+"Ẹ kú ọjà, ìyá tó ń tajà!" Àìní kí aláǹtà kan.
+"Ẹ kú àbọ̀, ọmọ mi. Kí ni o fẹ́ rà?" aláǹtà béèrè.
+"Mo fẹ́ rà ọ̀gẹ̀dẹ̀, àgbàdo, àti tómátì," Àìní dáhùn.
+"Ọ̀gẹ̀dẹ̀ jẹ́ ọgọ́rùn-ún náírà, àgbàdo jẹ́ ẹ̀ẹ́dẹ́gbẹ̀ta náírà," aláǹtà sọ.
+"Ó pọ̀ jù! Ẹ dín wọn kù fún mi," Àìní béèrè.
+"Ó dáa, ẹgbẹ̀rún náírà fún gbogbo rẹ̀," aláǹtà gbà.
+"Ó ṣeun, ìyá mi. Ọlọ́run a ń gbé yín o!" Àìní sọ.`,
+      questions: [
+        { id: 'q1', question: 'What day did Àìní go to the market?', options: ['Monday', 'Wednesday', 'Friday', 'Saturday'], correct: 'Wednesday' },
+        { id: 'q2', question: 'What did Àìní want to buy?', options: ['Rice and beans', 'Plantain, corn, and tomatoes', 'Yam and fish', 'Bread and butter'], correct: 'Plantain, corn, and tomatoes' },
+        { id: 'q3', question: 'What does "Ó pọ̀ jù" mean?', options: ['It is cheap', 'It is too much/expensive', 'It is perfect', 'It is small'], correct: 'It is too much/expensive' },
+        { id: 'q4', question: 'What happened in the end?', options: ['Àìní left without buying', 'The price was reduced', 'Àìní got angry', 'The seller refused'], correct: 'The price was reduced' },
+      ],
+    },
+    {
+      title: 'Ìdílé Mi — My Family',
+      difficulty: 'beginner',
+      passage: `Orúkọ mi ni Folúṣọ́. Mo ní ẹbí ńlá. Bàbá mi jẹ́ olùkọ́ ní ilé ẹ̀kọ́ gíga. Màmá mi jẹ́ oníṣòwò — ó ń ta aṣọ ní ọjà.
+
+Mo ní arákùnrin méjì àti arábìnrin kan. Arákùnrin mi àgbà orúkọ rẹ̀ ni Adéwálé — ó jẹ́ dókítà. Arákùnrin mi àbúrò orúkọ rẹ̀ ni Olúwáséun — ó ṣì ń kàwé ní yunifásítì.
+
+Arábìnrin mi orúkọ rẹ̀ ni Bùkọ́lá. Ó ti gbéyàwó. Ọkọ rẹ̀ orúkọ rẹ̀ ni Tóyìn. Wọ́n ní ọmọ méjì — ọmọkùnrin kan àti ọmọbìnrin kan.
+
+Ẹbí wa máa ń jọ pàdé ní ọjọ́ Àìkú, a máa ń jẹ oúnjẹ papọ̀, a sì máa ń bá ara wa sọ̀rọ̀.`,
+      questions: [
+        { id: 'q1', question: 'What does Folúṣọ́\'s father do?', options: ['He is a doctor', 'He is a teacher', 'He is a trader', 'He is a farmer'], correct: 'He is a teacher' },
+        { id: 'q2', question: 'How many siblings does Folúṣọ́ have?', options: ['One', 'Two', 'Three', 'Four'], correct: 'Three' },
+        { id: 'q3', question: 'What does Adéwálé do for a living?', options: ['Student', 'Teacher', 'Doctor', 'Trader'], correct: 'Doctor' },
+        { id: 'q4', question: 'When does the family meet together?', options: ['On Mondays', 'On Sundays', 'On Saturdays', 'Every day'], correct: 'On Sundays' },
+        { id: 'q5', question: 'How many children does Bùkọ́lá have?', options: ['One', 'Two', 'Three', 'None'], correct: 'Two' },
+      ],
+    },
+    {
+      title: 'Ìrìn Àjò — A Journey',
+      difficulty: 'intermediate',
+      passage: `Ní ọjọ́ kan, Dàmọ́lá gbéra láti Lagos lọ sí Ibadan. Ó gún ọkọ̀ akérò ní Ojòtá. Ọkọ̀ náà kún fún ènìyàn.
+
+"Ẹ jọ̀wọ́, ṣé ibùjókòó tí wà?" Dàmọ́lá béèrè lọ́wọ́ agbẹ̀nusọ.
+"Bẹ́ẹ̀ni, ibùjókòó kan ṣì wà ní ẹ̀yìn," agbẹ̀nusọ dáhùn.
+
+Ó jókòó, ó sì ti fọ́nù rẹ̀ jáde láti gbọ́ orin. Nígbà tí wọ́n ti rìn fún wákàtí kan, ọkọ̀ dúró nítorí tí ọ̀nà bajẹ́.
+
+"Gbogbo ènìyàn ẹ sùúrù, àwa yóò gbìyànjú láti ṣàtúnṣe," aṣaọkọ̀ sọ.
+
+Lẹ́yìn ìdákẹ́jẹ́ wákàtí méjì, wọ́n tún bẹ̀rẹ̀ ìrìn àjò. Dàmọ́lá dé Ibadan ní aṣálẹ́ — ó pẹ́ sùgbọ́n ó dé.`,
+      questions: [
+        { id: 'q1', question: 'Where was Dàmọ́lá travelling from?', options: ['Ibadan', 'Abuja', 'Lagos', 'Kano'], correct: 'Lagos' },
+        { id: 'q2', question: 'What happened during the journey?', options: ['The bus ran out of fuel', 'The road was bad/damaged', 'There was an accident', 'It started raining'], correct: 'The road was bad/damaged' },
+        { id: 'q3', question: 'How long was the delay?', options: ['30 minutes', '1 hour', '2 hours', '3 hours'], correct: '2 hours' },
+        { id: 'q4', question: 'What does "Ẹ sùúrù" mean?', options: ['Be careful', 'Be patient', 'Be quiet', 'Be fast'], correct: 'Be patient' },
+      ],
+    },
+    {
+      title: 'Ilé Ìwòsàn — At the Hospital',
+      difficulty: 'intermediate',
+      passage: `Àbíọ́dún kò rí ara dáadáa ní ọjọ́ méta. Orí rẹ̀ ń fọ́, ara rẹ̀ sì gbóná. Ó pinnu láti lọ sí ilé ìwòsàn.
+
+Nígbà tí ó dé, nọ́ọ̀sì kan pàdé rẹ̀.
+"Ẹ kú àbọ̀. Kí ni ó ń ṣe yín?" nọ́ọ̀sì béèrè.
+"Orí mi ń fọ́, ara mi sì gbóná. Mo ti ń ṣàìsàn fún ọjọ́ méta," Àbíọ́dún dáhùn.
+"Ẹ jọ̀wọ́ ẹ jókòó, dókítà yóò pe yín láìpẹ́," nọ́ọ̀sì sọ.
+
+Dókítà Ọlámídé ṣàyẹ̀wò rẹ̀: "Ìgbóná ara yín ga. Ẹ ní ibà. Mo máa fún yín ní oògùn. Ẹ mu oògùn lẹ́mẹta lójúmọ́, ẹ sì mu omi púpọ̀."
+
+"Ẹ ṣé, dókítà. Ìgbà mélòó ni kí n padà wá?" Àbíọ́dún béèrè.
+"Ẹ padà wá ní ọjọ́ márùn-ún tí ẹ bá ṣì rí ara yín," dókítà dáhùn.`,
+      questions: [
+        { id: 'q1', question: 'How long had Àbíọ́dún been ill?', options: ['One day', 'Two days', 'Three days', 'A week'], correct: 'Three days' },
+        { id: 'q2', question: 'What were Àbíọ́dún\'s symptoms?', options: ['Cough and cold', 'Headache and fever', 'Stomach ache', 'Leg pain'], correct: 'Headache and fever' },
+        { id: 'q3', question: 'What was the diagnosis?', options: ['Malaria/fever', 'Cold', 'Typhoid', 'COVID'], correct: 'Malaria/fever' },
+        { id: 'q4', question: 'How often should the medicine be taken?', options: ['Once a day', 'Twice a day', 'Three times a day', 'Four times a day'], correct: 'Three times a day' },
+        { id: 'q5', question: 'When should Àbíọ́dún return?', options: ['In 3 days', 'In 5 days', 'In a week', 'In 2 weeks'], correct: 'In 5 days' },
+      ],
+    },
+    {
+      title: 'Ìtàn Kékeré — A Short Yoruba Tale',
+      difficulty: 'intermediate',
+      passage: `Ní ìgbà àtijọ́, ìjàpá àti ehoro jẹ́ ọ̀rẹ́. Ọjọ́ kan, wọ́n rí igi ọ̀pẹ kan tí ó kún fún èso.
+
+"Ìjàpá, jẹ́ ká gun igi yìí ká sì jẹ èso rẹ̀," ehoro sọ.
+"Ó dáa, ṣùgbọ́n èmi ò lè gun igi," ìjàpá dáhùn. "Ṣùgbọ́n mo ní ètò kan."
+
+Ìjàpá sọ fún ehoro pé kí ó gun igi náà kí ó sì jù èso sókè sí oun. Ehoro ko mọ̀ pé ìjàpá ń tan ọ́n jẹ.
+
+Ehoro gun igi, ó sì bẹ̀rẹ̀ sí jù èso sílẹ̀. Ṣùgbọ́n ìjàpá kò jù kankan sókè fún ehoro — ó ń jẹ gbogbo rẹ̀ fún ara rẹ̀!
+
+"Ìjàpá, kí ni o ń ṣe?" ehoro kígbe.
+"Mo ń jẹ ohun tí mo nífẹ̀ẹ́ sí," ìjàpá dáhùn pẹ̀lú ẹ̀rín.
+
+Èyí ni ìdí tí àwọn àgbà fi máa ń sọ pé: "Ìjàpá ológbón-ín jù, ó fi ẹ̀tàn jẹ ayé."`,
+      questions: [
+        { id: 'q1', question: 'Who are the two characters in the story?', options: ['Tortoise and rabbit', 'Lion and monkey', 'Dog and cat', 'Spider and ant'], correct: 'Tortoise and rabbit' },
+        { id: 'q2', question: 'What did they find?', options: ['A river', 'A palm tree with fruits', 'A house', 'Gold'], correct: 'A palm tree with fruits' },
+        { id: 'q3', question: 'Why couldn\'t Ìjàpá (tortoise) climb?', options: ['He was lazy', 'He can\'t climb trees', 'He was scared', 'He was injured'], correct: 'He can\'t climb trees' },
+        { id: 'q4', question: 'What did Ìjàpá do with the fruits?', options: ['Shared equally', 'Ate them all himself', 'Threw them away', 'Saved for later'], correct: 'Ate them all himself' },
+      ],
+    },
+    {
+      title: 'Ọ̀rọ̀ Ìṣòwò — Business Conversation',
+      difficulty: 'advanced',
+      passage: `Olúmídé jẹ́ oníṣòwò aṣọ ní Ọjà Balogun, Eko. Ó ti ń ṣòwò fún ọdún mẹ́wàá. Lónìí, ó ń bá alábàárà tuntun sọ̀rọ̀.
+
+"Ẹ káàbọ̀ sí Ọjà Balogun. Kí ni ẹ ń wá?" Olúmídé béèrè.
+"Mo fẹ́ ra aṣọ àdìrẹ̀ fún àjọyọ̀ kan. Mélòó ni ẹgbẹ̀ kan?" alábàárà béèrè.
+"Àdìrẹ̀ ọ̀hún jẹ́ ẹgbẹ̀rún mẹ́ẹ̀ẹ́dógún náírà. Kí ẹ ṣàìsànwó o, ọjà yìí jẹ́ ti àkọ́kọ́," Olúmídé sọ.
+
+"Ẹ̀ẹ̀, ó wọn jù! Ẹ dín wọn kù. N ó fi ẹgbẹ̀rún mẹ́wàá ra," alábàárà dáhùn.
+"Rárá o, ẹ ò lè dín bẹ́ẹ̀. Ẹ fi ẹgbẹ̀rún méjìlá, èyí ni tí ó kéhìn," Olúmídé gbà.
+"Ó dáa, ẹgbẹ̀rún méjìlá. Mo gbà," alábàárà fọwọ́ sí.
+
+Olúmídé wé aṣọ náà, ó sì fi sínú àpò. "Ẹ ṣé fún ọjà yín. Ẹ padà wá o!"`,
+      questions: [
+        { id: 'q1', question: 'Where is Olúmídé\'s shop?', options: ['Ọjà Oshodi', 'Ọjà Balogun', 'Ọjà Ìdùmọ̀ta', 'Ọjà Ọjó'], correct: 'Ọjà Balogun' },
+        { id: 'q2', question: 'How long has Olúmídé been in business?', options: ['5 years', '8 years', '10 years', '15 years'], correct: '10 years' },
+        { id: 'q3', question: 'What was the original asking price?', options: ['₦10,000', '₦12,000', '₦15,000', '₦20,000'], correct: '₦15,000' },
+        { id: 'q4', question: 'What was the final agreed price?', options: ['₦10,000', '₦12,000', '₦13,000', '₦15,000'], correct: '₦12,000' },
+      ],
+    },
+    {
+      title: 'Àṣà Ọmọ Yorùbá — Yoruba Cultural Practices',
+      difficulty: 'advanced',
+      passage: `Àwọn Yorùbá ní àṣà púpọ̀ tí wọ́n fi ń ṣe ìyàtọ̀ sí àwọn ẹ̀yà mìíràn. Ọ̀kan lára àṣà pàtàkì ni ìjúbà — ọ̀nà tí àwọn ọmọ Yorùbá fi ń tẹrí ba àwọn àgbà.
+
+Ọmọkùnrin a máa dá ọbálẹ̀ — ó máa dùbúlẹ̀ rí ìpẹ̀nlẹ̀ sí àwọn àgbà. Ọmọbìnrin a máa kúnlẹ̀ — ó máa fi ẽ̀ẹ̀kún méjèèjì kàn ilẹ̀. Èyí fi hàn pé wọ́n bọ̀wọ̀ fún àwọn àgbà.
+
+Àṣà mìíràn ni ọ̀nà tí wọ́n fi ń fún àgbà ní nǹkan. Wọ́n máa ń fi ọwọ́ ọ̀tún fún àgbà ní ohun, tàbí ọwọ́ méjèèjì. Kò yẹ kí ọmọ fi ọwọ́ òsì fún àgbà — kò dára.
+
+Àwọn orúkọ Yorùbá pàá ní ìtumọ̀ jíjinlẹ̀. Fún àpẹẹrẹ: "Adébáyọ̀" túmọ̀ sí "adé dé ní ìbáyọ̀" — ọba tuntun wá nínú ayọ̀. "Olúwáṣẹun" túmọ̀ sí "Ọlọ́run ṣe ohun yìí" — Ọlọ́run ṣe é. Orúkọ kọ̀ọ̀kan ní ìtàn àrà ọ̀tọ̀.`,
+      questions: [
+        { id: 'q1', question: 'What is "ìjúbà"?', options: ['A type of food', 'A way of greeting/showing respect to elders', 'A festival', 'A dance'], correct: 'A way of greeting/showing respect to elders' },
+        { id: 'q2', question: 'How do boys prostrate to elders?', options: ['They kneel', 'They lie flat on the ground', 'They bow their head', 'They wave'], correct: 'They lie flat on the ground' },
+        { id: 'q3', question: 'Which hand should be used to give something to an elder?', options: ['Left hand', 'Right hand or both hands', 'Any hand', 'It doesn\'t matter'], correct: 'Right hand or both hands' },
+        { id: 'q4', question: 'What does "Adébáyọ̀" mean?', options: ['God is great', 'The crown came with joy', 'The child of prayer', 'Born on a special day'], correct: 'The crown came with joy' },
+      ],
+    },
+  ];
+
+  for (const exercise of readingExercises) {
+    await db.collection('readingExercises').doc().set({
+      ...exercise,
+      createdAt: new Date().toISOString(),
+    });
+  }
+  console.log(`  ✅ ${readingExercises.length} reading exercises seeded`);
+
+  // ─── Seed Missions ──────────────────────────────────────────────────────────
+  console.log('\n🏆 Seeding missions...');
+  const missionDefs = [
+    { type: 'daily', title: 'Complete 1 lesson', description: 'Finish any lesson today', criteria: { action: 'complete_lesson', target: 1 }, reward: { xp: 50 } },
+    { type: 'daily', title: 'Review 10 flashcards', description: 'Review 10 vocabulary flashcards', criteria: { action: 'review_flashcard', target: 10 }, reward: { xp: 30 } },
+    { type: 'daily', title: 'Take a quiz', description: 'Complete any quiz', criteria: { action: 'complete_quiz', target: 1 }, reward: { xp: 40 } },
+    { type: 'daily', title: 'Writing practice', description: 'Submit a writing exercise', criteria: { action: 'complete_writing', target: 1 }, reward: { xp: 35 } },
+    { type: 'weekly', title: 'Complete 5 lessons', description: 'Finish 5 lessons this week', criteria: { action: 'complete_lesson', target: 5 }, reward: { xp: 150 } },
+    { type: 'weekly', title: 'Conversation practice', description: 'Have 3 AI conversation sessions this week', criteria: { action: 'complete_conversation', target: 3 }, reward: { xp: 100 } },
+    { type: 'weekly', title: 'Reading comprehension', description: 'Complete 2 reading exercises this week', criteria: { action: 'complete_reading', target: 2 }, reward: { xp: 80 } },
+    { type: 'milestone', title: 'First steps', description: 'Complete your first lesson', criteria: { action: 'complete_lesson', target: 1 }, reward: { xp: 100, badge: '🌱' } },
+    { type: 'milestone', title: 'Word collector', description: 'Review 100 flashcards', criteria: { action: 'review_flashcard', target: 100 }, reward: { xp: 200, badge: '📚' } },
+    { type: 'milestone', title: 'Quiz master', description: 'Complete 10 quizzes', criteria: { action: 'complete_quiz', target: 10 }, reward: { xp: 250, badge: '🧠' } },
+    { type: 'milestone', title: '7-day streak', description: 'Maintain a 7-day learning streak', criteria: { action: 'streak', target: 7 }, reward: { xp: 300, badge: '🔥' } },
+    { type: 'milestone', title: 'Conversationalist', description: 'Complete 5 AI conversation sessions', criteria: { action: 'complete_conversation', target: 5 }, reward: { xp: 200, badge: '💬' } },
+  ];
+
+  for (const mission of missionDefs) {
+    await db.collection('missions').doc().set({
+      ...mission,
+      createdAt: new Date().toISOString(),
+    });
+  }
+  console.log(`  ✅ ${missionDefs.length} missions seeded`);
+
+  // ─── Seed Achievements ──────────────────────────────────────────────────────
+  console.log('\n🎖️  Seeding achievements...');
+  const achievementDefs = [
+    { title: 'First Lesson', description: 'Complete your first lesson', trigger: 'lessons_completed', threshold: 1, icon: '🌱' },
+    { title: 'Dedicated Learner', description: 'Complete 10 lessons', trigger: 'lessons_completed', threshold: 10, icon: '📖' },
+    { title: 'Scholar', description: 'Complete 25 lessons', trigger: 'lessons_completed', threshold: 25, icon: '🎓' },
+    { title: 'Master', description: 'Complete all 60 lessons', trigger: 'lessons_completed', threshold: 60, icon: '👑' },
+    { title: 'Perfect Score', description: 'Score 100% on a quiz', trigger: 'perfect_quiz', threshold: 1, icon: '💯' },
+    { title: 'Quiz Enthusiast', description: 'Complete 10 quizzes', trigger: 'quizzes_completed', threshold: 10, icon: '📝' },
+    { title: 'Streak Starter', description: 'Achieve a 3-day streak', trigger: 'streak', threshold: 3, icon: '🔥' },
+    { title: 'Week Warrior', description: 'Achieve a 7-day streak', trigger: 'streak', threshold: 7, icon: '⚡' },
+    { title: 'Month Champion', description: 'Achieve a 30-day streak', trigger: 'streak', threshold: 30, icon: '🏆' },
+    { title: 'Bookworm', description: 'Complete 5 reading exercises', trigger: 'readings_completed', threshold: 5, icon: '📚' },
+    { title: 'Wordsmith', description: 'Submit 5 writing exercises', trigger: 'writings_completed', threshold: 5, icon: '✍️' },
+    { title: 'Conversationalist', description: 'Complete 5 AI conversations', trigger: 'conversations_completed', threshold: 5, icon: '💬' },
+    { title: 'Vocab Builder', description: 'Review 50 flashcards', trigger: 'flashcards_reviewed', threshold: 50, icon: '🃏' },
+    { title: 'Vocab Master', description: 'Review 500 flashcards', trigger: 'flashcards_reviewed', threshold: 500, icon: '🏅' },
+    { title: 'Rising Star', description: 'Reach Level 5', trigger: 'level', threshold: 5, icon: '⭐' },
+    { title: 'XP Hunter', description: 'Earn 5000 XP total', trigger: 'total_xp', threshold: 5000, icon: '🎯' },
+  ];
+
+  for (const ach of achievementDefs) {
+    await db.collection('achievements').doc().set({
+      ...ach,
+      createdAt: new Date().toISOString(),
+    });
+  }
+  console.log(`  ✅ ${achievementDefs.length} achievements seeded`);
+
   // Summary
   const totalPhrases = lessons.reduce((sum, l) => sum + l.phrases.length, 0);
   console.log('\n═══════════════════════════════════════');
   console.log('🎉 Seed complete!');
-  console.log(`   📚 ${lessons.length} lessons`);
+  console.log(`   📚 ${lessons.length} lessons (with prerequisite chaining)`);
   console.log(`   💬 ${totalPhrases} phrases`);
   console.log(`   📖 ${vocabulary.length} vocabulary entries`);
   console.log(`   📅 ${schedulesSeeded} schedule entries`);
   console.log(`   🃏 ${flashcardsSeeded} flashcards`);
+  console.log(`   📗 ${readingExercises.length} reading exercises`);
+  console.log(`   🏆 ${missionDefs.length} missions`);
+  console.log(`   🎖️  ${achievementDefs.length} achievements`);
   console.log(`   📊 Categories: conversation, vocabulary, grammar, listening`);
   console.log(`   📊 Levels: beginner (A1-A2), intermediate (B1-B2), advanced (C1-C2)`);
   console.log('═══════════════════════════════════════\n');

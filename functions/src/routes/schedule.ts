@@ -4,6 +4,17 @@ import { requireAuth } from '../middleware/auth';
 
 const router = Router();
 
+// Default schedule entries created for new users
+const DEFAULT_SCHEDULES = [
+  { dayOfWeek: 1, startTime: '07:00', duration: 20, active: true },
+  { dayOfWeek: 2, startTime: '07:00', duration: 20, active: true },
+  { dayOfWeek: 3, startTime: '07:00', duration: 20, active: true },
+  { dayOfWeek: 4, startTime: '07:00', duration: 20, active: true },
+  { dayOfWeek: 5, startTime: '07:00', duration: 20, active: true },
+  { dayOfWeek: 6, startTime: '10:00', duration: 45, active: true },
+  { dayOfWeek: 0, startTime: '10:00', duration: 45, active: true },
+];
+
 // GET /api/schedule/user/:userId
 router.get('/user/:userId', requireAuth, async (req: Request, res: Response) => {
   const { userId } = req.params;
@@ -16,9 +27,25 @@ router.get('/user/:userId', requireAuth, async (req: Request, res: Response) => 
       .where('userId', '==', userId)
       .get();
 
-    const schedules = snap.docs
+    let schedules = snap.docs
       .map((doc) => ({ id: doc.id, ...doc.data() }))
       .sort((a: any, b: any) => (a.dayOfWeek ?? 0) - (b.dayOfWeek ?? 0));
+
+    // Auto-create default schedules if none exist
+    if (schedules.length === 0) {
+      const now = new Date().toISOString();
+      const batch = db.batch();
+      const newDocs: any[] = [];
+      for (const sched of DEFAULT_SCHEDULES) {
+        const ref = db.collection('schedules').doc();
+        const doc = { userId, ...sched, createdAt: now, updatedAt: now };
+        batch.set(ref, doc);
+        newDocs.push({ id: ref.id, ...doc });
+      }
+      await batch.commit();
+      schedules = newDocs.sort((a: any, b: any) => (a.dayOfWeek ?? 0) - (b.dayOfWeek ?? 0));
+    }
+
     return res.json(schedules);
   } catch (err: any) {
     console.error('schedule/user error:', err?.message ?? err);

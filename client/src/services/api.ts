@@ -111,6 +111,7 @@ export const quizApi = {
     questions: any[];
     answers: Record<string, string>;
   }) => api.post('/quiz/submit', data),
+  getHistory: () => api.get('/quiz/history'),
 };
 
 // Reading API

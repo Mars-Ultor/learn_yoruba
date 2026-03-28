@@ -18,6 +18,7 @@ import onboardingRoutes from './routes/onboarding';
 import settingsRoutes from './routes/settings';
 import flashcardsRoutes from './routes/flashcards';
 import scheduleRoutes from './routes/schedule';
+import migrateRoutes from './routes/migrate';
 
 const app: Application = express();
 
@@ -46,6 +47,7 @@ app.use('/api/onboarding', onboardingRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/flashcards', flashcardsRoutes);
 app.use('/api/schedule', scheduleRoutes);
+app.use('/api/migrate', migrateRoutes);
 
 // Health check
 app.get('/health', (req: Request, res: Response) => {
