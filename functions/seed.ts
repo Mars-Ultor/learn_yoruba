@@ -1318,6 +1318,29 @@ const vocabulary: VocabData[] = [
 ];
 
 // ═══════════════════════════════════════════════════════════
+// DEFAULT SCHEDULES (daily + weekly templates)
+// ═══════════════════════════════════════════════════════════
+
+interface ScheduleData {
+  dayOfWeek: number; // 0=Sun … 6=Sat
+  startTime: string; // "HH:MM"
+  duration: number;  // minutes
+  active: boolean;
+}
+
+const defaultSchedules: ScheduleData[] = [
+  // Daily short sessions (Mon-Fri mornings)
+  { dayOfWeek: 1, startTime: '07:00', duration: 20, active: true },
+  { dayOfWeek: 2, startTime: '07:00', duration: 20, active: true },
+  { dayOfWeek: 3, startTime: '07:00', duration: 20, active: true },
+  { dayOfWeek: 4, startTime: '07:00', duration: 20, active: true },
+  { dayOfWeek: 5, startTime: '07:00', duration: 20, active: true },
+  // Weekend longer study blocks
+  { dayOfWeek: 6, startTime: '09:00', duration: 45, active: true },
+  { dayOfWeek: 0, startTime: '10:00', duration: 45, active: true },
+];
+
+// ═══════════════════════════════════════════════════════════
 // SEED FUNCTION
 // ═══════════════════════════════════════════════════════════
 
@@ -1326,7 +1349,7 @@ async function seed() {
 
   // Clear existing data
   console.log('🗑️  Clearing existing data...');
-  const collections = ['lessons', 'vocabulary'];
+  const collections = ['lessons', 'vocabulary', 'schedules', 'flashcards'];
   for (const col of collections) {
     const snapshot = await db.collection(col).get();
     const batch = db.batch();
@@ -1371,6 +1394,84 @@ async function seed() {
   }
   console.log(`  ✅ ${vocabulary.length} vocabulary entries seeded`);
 
+  // Seed default schedules — these are per-user.
+  // We read existing users and create schedules for each of them.
+  // If no users exist yet, we skip and log a note.
+  console.log('\n📅 Seeding default learning schedules...');
+  const usersSnap = await db.collection('users').get();
+  let schedulesSeeded = 0;
+
+  if (usersSnap.empty) {
+    console.log('  ⚠️  No users found — schedules will be created when users register.');
+  } else {
+    for (const userDoc of usersSnap.docs) {
+      const userId = userDoc.id;
+      // Delete any existing schedules for this user
+      const existingSchedules = await db.collection('schedules').where('userId', '==', userId).get();
+      if (!existingSchedules.empty) {
+        const delBatch = db.batch();
+        existingSchedules.docs.forEach((d) => delBatch.delete(d.ref));
+        await delBatch.commit();
+      }
+
+      const now = new Date().toISOString();
+      const batch = db.batch();
+      for (const sched of defaultSchedules) {
+        const ref = db.collection('schedules').doc();
+        batch.set(ref, { userId, ...sched, createdAt: now, updatedAt: now });
+      }
+      await batch.commit();
+      schedulesSeeded += defaultSchedules.length;
+      console.log(`  ✅ ${defaultSchedules.length} schedule entries for user ${userId}`);
+    }
+  }
+
+  // Seed flashcards — create a flashcard for every vocabulary for each user
+  console.log('\n🃏 Seeding flashcards (SRS decks)...');
+  let flashcardsSeeded = 0;
+
+  if (usersSnap.empty) {
+    console.log('  ⚠️  No users found — flashcards will be created via /api/flashcards/user/:id/init.');
+  } else {
+    // Gather all vocabulary IDs
+    const allVocabSnap = await db.collection('vocabulary').get();
+    const vocabIds = allVocabSnap.docs.map((d) => d.id);
+    const now = new Date().toISOString();
+
+    for (const userDoc of usersSnap.docs) {
+      const userId = userDoc.id;
+
+      // Delete any existing flashcards for this user
+      const existingFlash = await db.collection('flashcards').where('userId', '==', userId).get();
+      if (!existingFlash.empty) {
+        const delBatch = db.batch();
+        existingFlash.docs.forEach((d) => delBatch.delete(d.ref));
+        await delBatch.commit();
+      }
+
+      // Batch flashcard creation (500 per batch — Firestore limit)
+      for (let i = 0; i < vocabIds.length; i += 500) {
+        const batch = db.batch();
+        const chunk = vocabIds.slice(i, i + 500);
+        for (const vocabId of chunk) {
+          const ref = db.collection('flashcards').doc();
+          batch.set(ref, {
+            userId,
+            vocabularyId: vocabId,
+            easeFactor: 2.5,
+            interval: 0,
+            repetitions: 0,
+            nextReview: now,
+            lastReview: now,
+          });
+        }
+        await batch.commit();
+      }
+      flashcardsSeeded += vocabIds.length;
+      console.log(`  ✅ ${vocabIds.length} flashcards for user ${userId}`);
+    }
+  }
+
   // Summary
   const totalPhrases = lessons.reduce((sum, l) => sum + l.phrases.length, 0);
   console.log('\n═══════════════════════════════════════');
@@ -1378,6 +1479,8 @@ async function seed() {
   console.log(`   📚 ${lessons.length} lessons`);
   console.log(`   💬 ${totalPhrases} phrases`);
   console.log(`   📖 ${vocabulary.length} vocabulary entries`);
+  console.log(`   📅 ${schedulesSeeded} schedule entries`);
+  console.log(`   🃏 ${flashcardsSeeded} flashcards`);
   console.log(`   📊 Categories: conversation, vocabulary, grammar, listening`);
   console.log(`   📊 Levels: beginner (A1-A2), intermediate (B1-B2), advanced (C1-C2)`);
   console.log('═══════════════════════════════════════\n');

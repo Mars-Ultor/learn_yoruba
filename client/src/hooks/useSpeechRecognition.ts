@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 interface UseSpeechRecognitionProps {
   onResult?: (transcript: string) => void;
@@ -23,6 +23,13 @@ export function useSpeechRecognition({
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [recognition, setRecognition] = useState<SpeechRecognition | null>(null);
+
+  // Keep callbacks in refs so the effect below never needs to re-run when the
+  // caller passes new inline arrow functions (avoids aborting recognition on every render).
+  const onResultRef = useRef(onResult);
+  const onEndRef = useRef(onEnd);
+  useEffect(() => { onResultRef.current = onResult; }, [onResult]);
+  useEffect(() => { onEndRef.current = onEnd; }, [onEnd]);
 
   const isSupported = typeof window !== 'undefined' && 
     ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window);
@@ -54,15 +61,15 @@ export function useSpeechRecognition({
       const fullTranscript = finalTranscript || interimTranscript;
       setTranscript(fullTranscript);
       
-      if (finalTranscript && onResult) {
-        onResult(finalTranscript);
+      if (finalTranscript && onResultRef.current) {
+        onResultRef.current(finalTranscript);
       }
     };
 
     recognitionInstance.onend = () => {
       setIsListening(false);
-      if (onEnd) {
-        onEnd();
+      if (onEndRef.current) {
+        onEndRef.current();
       }
     };
 
@@ -78,7 +85,10 @@ export function useSpeechRecognition({
         recognitionInstance.abort();
       }
     };
-  }, [isSupported, lang, onResult, onEnd]);
+  // Only re-create the recognition instance when lang or support status changes.
+  // Callbacks are accessed via refs so they are intentionally omitted here.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSupported, lang]);
 
   const startListening = useCallback(() => {
     if (recognition && !isListening) {

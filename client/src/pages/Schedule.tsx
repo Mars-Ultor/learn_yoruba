@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { scheduleApi } from '../services/api';
 import type { LearningSchedule } from '../types';
@@ -20,7 +19,7 @@ function formatTime(t: string) {
   return `${hour}:${m.toString().padStart(2, '0')} ${period}`;
 }
 
-function getNextOccurrence(dayOfWeek: number, startTime: string): string {
+function getNextOccurrenceDate(dayOfWeek: number, startTime: string): Date {
   const now = new Date();
   const [h, mi] = startTime.split(':').map(Number);
   const target = new Date(now);
@@ -28,13 +27,17 @@ function getNextOccurrence(dayOfWeek: number, startTime: string): string {
   let diff = dayOfWeek - now.getDay();
   if (diff < 0 || (diff === 0 && target <= now)) diff += 7;
   target.setDate(target.getDate() + diff);
+  return target;
+}
+
+function getNextOccurrence(dayOfWeek: number, startTime: string): string {
+  const target = getNextOccurrenceDate(dayOfWeek, startTime);
   const opts: Intl.DateTimeFormatOptions = { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' };
   return target.toLocaleDateString('en-US', opts);
 }
 
 export default function Schedule() {
   const { user } = useAuth();
-  const navigate = useNavigate();
 
   const [schedules, setSchedules] = useState<LearningSchedule[]>([]);
   const [loading, setLoading] = useState(true);
@@ -49,7 +52,6 @@ export default function Schedule() {
   const [notifPermission, setNotifPermission] = useState<NotificationPermission>('default');
 
   useEffect(() => {
-    if (!user) { navigate('/login'); return; }
     fetchSchedules();
     if ('Notification' in window) setNotifPermission(Notification.permission);
   }, [user]);
@@ -101,8 +103,8 @@ export default function Schedule() {
   // Upcoming sessions (next 3)
   const upcomingSessions = [...schedules]
     .filter((s) => s.active)
-    .map((s) => ({ ...s, next: getNextOccurrence(s.dayOfWeek, s.startTime) }))
-    .sort((a, b) => a.next.localeCompare(b.next))
+    .map((s) => ({ ...s, next: getNextOccurrence(s.dayOfWeek, s.startTime), nextTs: getNextOccurrenceDate(s.dayOfWeek, s.startTime).getTime() }))
+    .sort((a, b) => a.nextTs - b.nextTs)
     .slice(0, 3);
 
   return (

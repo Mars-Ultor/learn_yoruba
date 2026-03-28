@@ -5,19 +5,28 @@ import type { Vocabulary } from '../types';
 export default function VocabularyPage() {
   const [vocabulary, setVocabulary] = useState<Vocabulary[]>([]);
   const [filter, setFilter] = useState<'all' | 'greetings' | 'nouns' | 'verbs' | 'proverbs' | 'adjectives' | 'adverbs' | 'numbers' | 'expressions'>('all');
+  const [page, setPage] = useState(1);
+  const [pages, setPages] = useState(1);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchVocabulary();
-  }, [filter]);
+  }, [filter, page]);
 
   const fetchVocabulary = async () => {
     try {
       setLoading(true);
       const response = filter === 'all'
-        ? await vocabularyApi.getAll()
+        ? await vocabularyApi.getAll(page, 18)
         : await vocabularyApi.getByType(filter);
-      setVocabulary(response.data);
+      const payload = response.data;
+      if (payload && Array.isArray(payload.data)) {
+        setVocabulary(payload.data);
+        setPages(payload.pages ?? 1);
+      } else {
+        setVocabulary(Array.isArray(payload) ? payload : []);
+        setPages(1);
+      }
     } catch (error) {
       console.error('Error fetching vocabulary:', error);
     } finally {
@@ -56,28 +65,41 @@ export default function VocabularyPage() {
     }
   };
 
+  // Static class map — dynamic strings like `bg-${color}-600` are purged by Tailwind JIT
+  const activeClass: Record<string, string> = {
+    all:         'bg-green-600 text-white',
+    greetings:   'bg-green-600 text-white',
+    nouns:       'bg-blue-600 text-white',
+    verbs:       'bg-purple-600 text-white',
+    adjectives:  'bg-pink-600 text-white',
+    adverbs:     'bg-cyan-600 text-white',
+    numbers:     'bg-indigo-600 text-white',
+    proverbs:    'bg-amber-600 text-white',
+    expressions: 'bg-orange-600 text-white',
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-4xl font-bold text-gray-900">Àkójọ Ọ̀rọ̀ - Vocabulary</h1>
         <div className="flex gap-2 flex-wrap justify-end">
           {([
-            { key: 'all', label: 'All', color: 'green' },
-            { key: 'greetings', label: 'Greetings', color: 'green' },
-            { key: 'nouns', label: 'Nouns', color: 'blue' },
-            { key: 'verbs', label: 'Verbs', color: 'purple' },
-            { key: 'adjectives', label: 'Adjectives', color: 'pink' },
-            { key: 'adverbs', label: 'Adverbs', color: 'cyan' },
-            { key: 'numbers', label: 'Numbers', color: 'indigo' },
-            { key: 'proverbs', label: 'Proverbs', color: 'amber' },
-            { key: 'expressions', label: 'Expressions', color: 'orange' },
-          ] as const).map(({ key, label, color }) => (
+            { key: 'all',         label: 'All' },
+            { key: 'greetings',   label: 'Greetings' },
+            { key: 'nouns',       label: 'Nouns' },
+            { key: 'verbs',       label: 'Verbs' },
+            { key: 'adjectives',  label: 'Adjectives' },
+            { key: 'adverbs',     label: 'Adverbs' },
+            { key: 'numbers',     label: 'Numbers' },
+            { key: 'proverbs',    label: 'Proverbs' },
+            { key: 'expressions', label: 'Expressions' },
+          ] as const).map(({ key, label }) => (
             <button
               key={key}
-              onClick={() => setFilter(key)}
+              onClick={() => { setFilter(key); setPage(1); }}
               className={`px-4 py-2 rounded-lg font-medium transition-colors ${
                 filter === key
-                  ? `bg-${color}-600 text-white`
+                  ? activeClass[key]
                   : 'bg-white text-gray-700 hover:bg-gray-50'
               }`}
             >
@@ -129,6 +151,14 @@ export default function VocabularyPage() {
               </button>
             </div>
           ))}
+        </div>
+      )}
+
+      {pages > 1 && (
+        <div className="flex justify-center gap-2 pt-4">
+          <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="px-4 py-2 rounded-lg border text-sm disabled:opacity-40 hover:bg-gray-50">← Prev</button>
+          <span className="px-4 py-2 text-sm text-gray-500">{page} / {pages}</span>
+          <button onClick={() => setPage((p) => Math.min(pages, p + 1))} disabled={page === pages} className="px-4 py-2 rounded-lg border text-sm disabled:opacity-40 hover:bg-gray-50">Next →</button>
         </div>
       )}
     </div>

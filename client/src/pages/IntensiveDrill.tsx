@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { lessonsApi } from '../services/api';
+import { lessonsApi, progressApi } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import type { Lesson, Phrase } from '../types';
 
@@ -23,6 +24,7 @@ function scorePercent(results: PhraseResult[]) {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function IntensiveDrill() {
+  const { user } = useAuth();
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [loadingLessons, setLoadingLessons] = useState(true);
   const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
@@ -54,6 +56,15 @@ export default function IntensiveDrill() {
       setLoadingLessons(false);
     });
   }, []);
+
+  // Persist progress whenever the results phase is reached
+  useEffect(() => {
+    if (phase !== 'results' || !selectedLesson || !user) return;
+    progressApi
+      .updateProgress({ userId: user.uid, lessonId: selectedLesson.id, score: scorePercent(results) })
+      .catch((err) => console.error('Error saving drill progress:', err));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase]);
 
   useEffect(() => {
     if (!isTimerRunning) { if (timerRef.current) clearInterval(timerRef.current); return; }

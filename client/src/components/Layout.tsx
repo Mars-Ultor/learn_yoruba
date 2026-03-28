@@ -47,10 +47,14 @@ export default function Layout({ children }: LayoutProps) {
               {navLink('/', 'Home')}
               {navLink('/lessons', 'Lessons')}
               {navLink('/vocabulary', 'Vocabulary')}
-              {navLink('/schedule', 'Schedule')}
-              {navLink('/techniques', 'Techniques')}
-              {navLink('/drill', 'Intensive Drill')}
+              {/* Practice dropdown group */}
+              {navLink('/quiz', '📝 Quiz')}
+              {navLink('/reading', '📖 Reading')}
+              {navLink('/writing', '✍️ Writing')}
+              {navLink('/tutor', '🤖 AI Tutor')}
+              {navLink('/conversation', '💬 Conversation')}
               {navLink('/flashcards', 'Flashcards')}
+              {navLink('/schedule', 'Schedule')}
               {user ? (
                 <>
                   {navLink('/profile', 'Profile')}
@@ -85,10 +89,13 @@ export default function Layout({ children }: LayoutProps) {
             {navLink('/', 'Home')}
             {navLink('/lessons', 'Lessons')}
             {navLink('/vocabulary', 'Vocabulary')}
-            {navLink('/schedule', 'Schedule')}
-            {navLink('/techniques', 'Techniques')}
-            {navLink('/drill', 'Intensive Drill')}
+            {navLink('/quiz', '📝 Quiz')}
+            {navLink('/reading', '📖 Reading')}
+            {navLink('/writing', '✍️ Writing')}
+            {navLink('/tutor', '🤖 AI Tutor')}
+            {navLink('/conversation', '💬 Conversation')}
             {navLink('/flashcards', 'Flashcards')}
+            {navLink('/schedule', 'Schedule')}
             {user ? (
               <>
                 {navLink('/profile', 'Profile')}

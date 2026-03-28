@@ -1,17 +1,31 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { lessonsApi } from '../services/api';
+import { lessonsApi, progressApi } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import type { Lesson, Phrase } from '../types';
 
 export default function LessonDetail() {
   const { id } = useParams<{ id: string }>();
+  const { user } = useAuth();
   const [lesson, setLesson] = useState<Lesson | null>(null);
+  const [isLocked, setIsLocked] = useState(false);
   const [currentPhraseIndex, setCurrentPhraseIndex] = useState(0);
   const [showEnglish, setShowEnglish] = useState(false);
   const [loading, setLoading] = useState(true);
   const [feedback, setFeedback] = useState<{type: 'success' | 'error' | 'info', message: string} | null>(null);
   const [showPractice, setShowPractice] = useState(false);
+  const [progressSaved, setProgressSaved] = useState(false);
+
+  const saveProgress = useCallback(async (completedLesson: Lesson, score: number) => {
+    if (!user || progressSaved) return;
+    try {
+      await progressApi.updateProgress({ userId: user.uid, lessonId: completedLesson.id, score });
+      setProgressSaved(true);
+    } catch (error) {
+      console.error('Error saving progress:', error);
+    }
+  }, [user, progressSaved]);
 
   const { isListening, transcript, startListening, stopListening, resetTranscript, isSupported } = useSpeechRecognition({
     onResult: (result) => {
@@ -25,6 +39,18 @@ export default function LessonDetail() {
   useEffect(() => {
     fetchLesson();
   }, [id]);
+
+  useEffect(() => {
+    if (user && id) {
+      lessonsApi.getUnlocked().then((r) => {
+        const ids: string[] = r.data.unlockedIds ?? r.data ?? [];
+        // A lesson with no prerequisite is always unlocked
+        if (lesson && lesson.prerequisiteId && !ids.includes(id)) {
+          setIsLocked(true);
+        }
+      }).catch(console.error);
+    }
+  }, [user, id, lesson]);
 
   const fetchLesson = async () => {
     try {
@@ -44,6 +70,9 @@ export default function LessonDetail() {
     if (lesson && currentPhraseIndex < lesson.phrases.length - 1) {
       setCurrentPhraseIndex(currentPhraseIndex + 1);
       setShowEnglish(false);
+    } else if (lesson && currentPhraseIndex === lesson.phrases.length - 1) {
+      // Reached the end — save 100% score (user viewed every phrase)
+      saveProgress(lesson, 100);
     }
   };
 
@@ -70,6 +99,9 @@ export default function LessonDetail() {
     if (normalizedSpoken === normalizedExpected) {
       setFeedback({ type: 'success', message: 'Ó dára púpọ̀! Perfect pronunciation!' });
       setTimeout(() => {
+        if (lesson && currentPhraseIndex === lesson.phrases.length - 1) {
+          saveProgress(lesson, 100);
+        }
         handleNext();
         setFeedback(null);
         resetTranscript();
@@ -109,6 +141,19 @@ export default function LessonDetail() {
         <div className="text-gray-600 mb-4">Lesson not found</div>
         <Link to="/lessons" className="text-green-600 hover:underline">
           Back to lessons
+        </Link>
+      </div>
+    );
+  }
+
+  if (isLocked) {
+    return (
+      <div className="max-w-xl mx-auto text-center py-16 space-y-4">
+        <div className="text-6xl">🔒</div>
+        <h2 className="text-2xl font-bold text-gray-900">Lesson Locked</h2>
+        <p className="text-gray-600">Complete the prerequisite lesson with ≥70% to unlock this lesson.</p>
+        <Link to="/lessons" className="inline-block mt-4 bg-green-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-green-700">
+          Back to Lessons
         </Link>
       </div>
     );
